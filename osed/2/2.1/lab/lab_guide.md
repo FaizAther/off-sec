@@ -1,5 +1,9 @@
 # OSED Section 2.1 Lab: Introduction to x86 Architecture
 
+**Difficulty Level:** Beginner
+**Estimated Time:** 3.5 hours (2h theory + 1.5h lab)
+**Skills:** Memory layout analysis, Register examination, Basic WinDbg usage
+
 ## Lab Overview
 This lab provides hands-on experience with x86 architecture concepts, focusing on memory layout analysis and CPU register examination using WinDbg.
 
@@ -163,6 +167,156 @@ Practice calculating memory addresses and understanding addressing modes.
    ```windbg
    x sample!*
    ```
+
+### Exercise 4: Advanced Memory Mapping (Advanced)
+**Duration:** 45 minutes
+
+#### Objective:
+Analyze complex memory mappings including shared memory, memory-mapped files, and kernel/user space boundaries.
+
+#### Steps:
+
+1. **Create Enhanced Test Program**
+   ```c
+   #include <stdio.h>
+   #include <windows.h>
+
+   int main() {
+       HANDLE hMapFile;
+       LPVOID pBuf;
+
+       // Create memory-mapped file
+       hMapFile = CreateFileMapping(
+           INVALID_HANDLE_VALUE,
+           NULL,
+           PAGE_READWRITE,
+           0,
+           4096,
+           TEXT("MySharedMemory"));
+
+       pBuf = MapViewOfFile(hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, 4096);
+
+       printf("Mapped address: %p\n", pBuf);
+
+       // Allocate various memory types
+       LPVOID heap = HeapAlloc(GetProcessHeap(), 0, 1024);
+       LPVOID virtual = VirtualAlloc(NULL, 8192, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+
+       printf("Press Enter to continue...\n");
+       getchar();
+
+       UnmapViewOfFile(pBuf);
+       CloseHandle(hMapFile);
+       HeapFree(GetProcessHeap(), 0, heap);
+       VirtualFree(virtual, 0, MEM_RELEASE);
+
+       return 0;
+   }
+   ```
+
+2. **Analyze Memory Types**
+   ```windbg
+   !address -summary
+   !address -f:MEM_MAPPED
+   !address -f:Heap
+   !address -f:Stack
+   ```
+
+3. **Examine Page Table Entries**
+   ```windbg
+   !pte <address>
+   !vtop <process_cr3> <virtual_address>
+   ```
+
+4. **Identify Kernel/User Boundary**
+   - Locate 0x80000000 boundary on 32-bit systems
+   - Analyze memory protection mechanisms
+   - Document address space layout randomization (ASLR)
+
+5. **Challenge Tasks**
+   - Calculate the total private committed memory
+   - Identify all executable regions
+   - Find memory regions with write+execute permissions (potential security issues)
+
+#### Expected Output:
+```
+--- Usage Summary ---------------- RgnCount ----------- Total Size -------- %ofBusy %ofTotal
+Free                                     68        7ffa`5e8e0000 ( 127.978 TB)           99.98%
+<unknown>                               193           0`1a050000 ( 416.312 MB)  99.71%    0.00%
+Image                                   293           0`0c0a1000 ( 192.629 MB)   0.29%    0.00%
+Stack                                     8           0`00280000 (   2.500 MB)   0.00%    0.00%
+```
+
+### Exercise 5: Register State Analysis During Function Calls (Intermediate)
+**Duration:** 40 minutes
+
+#### Objective:
+Track register state changes across function boundaries and understand calling conventions.
+
+#### Steps:
+
+1. **Create Multi-Function Program**
+   ```c
+   #include <stdio.h>
+
+   int __cdecl add(int a, int b) {
+       int result = a + b;
+       return result;
+   }
+
+   int __stdcall multiply(int a, int b) {
+       int result = a * b;
+       return result;
+   }
+
+   int __fastcall subtract(int a, int b) {
+       int result = a - b;
+       return result;
+   }
+
+   int main() {
+       int x = 10, y = 20;
+       int sum = add(x, y);
+       int product = multiply(x, y);
+       int diff = subtract(x, y);
+
+       printf("Sum: %d, Product: %d, Diff: %d\n", sum, product, diff);
+       return 0;
+   }
+   ```
+
+2. **Set Breakpoints on Functions**
+   ```windbg
+   bp sample!add
+   bp sample!multiply
+   bp sample!subtract
+   g
+   ```
+
+3. **Analyze Calling Conventions**
+   - __cdecl: Arguments pushed right-to-left on stack
+   - __stdcall: Callee cleans stack
+   - __fastcall: First two arguments in ECX, EDX
+
+4. **Track Register Changes**
+   ```windbg
+   r  # Before function call
+   p  # Step through
+   r  # After function call
+   ```
+
+5. **Document Stack Frame**
+   ```windbg
+   k  # Stack trace
+   dps esp L10  # Display stack contents
+   ```
+
+#### Expected Output:
+Document how each calling convention affects:
+- Stack layout
+- Register usage
+- Return value handling
+- Stack cleanup responsibility
 
 ## Lab Deliverables
 
