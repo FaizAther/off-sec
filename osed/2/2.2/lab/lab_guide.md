@@ -1,5 +1,9 @@
 # OSED Section 2.2 Lab: Introduction to Windows Debugger
 
+**Difficulty Level:** Beginner
+**Estimated Time:** 4.5 hours (2.5h theory + 2h lab)
+**Skills:** WinDbg navigation, Workspace management, Symbol loading, Process analysis
+
 ## Lab Overview
 This lab provides hands-on experience with WinDbg interface, workspace management, and symbol loading. Students will learn to navigate WinDbg effectively and configure debugging environments.
 
@@ -241,6 +245,280 @@ BASE: 00400000
 SIZE: 00001000
 ENTRY_POINT: 00401000
 ```
+
+### Exercise 5: Advanced Symbol Analysis (Intermediate)
+**Duration:** 45 minutes
+
+#### Objective:
+Deep dive into symbol formats, private vs public symbols, and advanced symbol manipulation techniques.
+
+####Steps:
+
+1. **Compare Symbol Types**
+   ```c
+   // Compile with different symbol levels
+   // Full debug: gcc -g -o sample_full.exe sample.c
+   // Minimal: gcc -o sample_minimal.exe sample.c
+   // Release with symbols: cl /Zi /O2 sample.c
+   ```
+
+2. **Analyze Symbol Information**
+   ```windbg
+   !sym noisy  # Verbose symbol loading
+   .reload /f sample_full.exe
+   !lmi sample_full
+
+   # Compare with minimal symbols
+   .reload /f sample_minimal.exe
+   !lmi sample_minimal
+   ```
+
+3. **Examine Symbol Details**
+   ```windbg
+   x /t /v sample!*  # List all symbols with types
+   x /D sample!*     # List data symbols only
+   x /A sample!*     # List all symbols
+   ```
+
+4. **Navigate Through Functions**
+   ```windbg
+   ln sample!main            # List nearest symbol
+   u sample!main             # Disassemble main
+   uf sample!add_numbers     # Unassemble full function
+   ```
+
+5. **Explore Type Information**
+   ```windbg
+   dt ntdll!_TEB                    # Display TEB structure
+   dt ntdll!_PEB                    # Display PEB structure
+   dt sample!*                      # Display all user-defined types
+   ```
+
+6. **Symbol Server Deep Dive**
+   ```windbg
+   # Configure multiple symbol servers
+   .sympath cache*C:\LocalSymbols;srv*https://msdl.microsoft.com/download/symbols
+
+   # Force download of symbols
+   .reload /f /i
+
+   # Verify downloaded symbols
+   .sympath
+   !sym noisy
+   .reload /v
+   ```
+
+#### Challenge Tasks:
+- Set up a local symbol server
+- Compare stripped vs unstripped binaries
+- Identify which functions are available in public symbols only
+- Document symbol loading performance differences
+
+#### Expected Output:
+```
+Loaded image list for sample
+Image path: C:\Users\...\sample_full.exe
+Debug info: RSDS - GUID: {12345678-1234-1234-1234-123456789ABC}
+PDB: C:\Symbols\sample_full.pdb
+Symbol search path is: cache*C:\LocalSymbols;srv*https://...
+
+sample!main (int)
+sample!add_numbers (int, int)
+sample!multiply_numbers (int, int)
+```
+
+###Exercise 6: Multi-Process Debugging (Advanced)
+**Duration:** 50 minutes
+
+#### Objective:
+Learn to debug multiple processes simultaneously and understand parent-child process relationships.
+
+#### Steps:
+
+1. **Create Multi-Process Program**
+   ```c
+   #include <windows.h>
+   #include <stdio.h>
+
+   void parent_process() {
+       printf("Parent PID: %d\n", GetCurrentProcessId());
+
+       STARTUPINFO si = {sizeof(si)};
+       PROCESS_INFORMATION pi;
+
+       if (CreateProcess(NULL, "child.exe", NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+           printf("Child PID: %d\n", pi.dwProcessId);
+           WaitForSingleObject(pi.hProcess, INFINITE);
+           CloseHandle(pi.hProcess);
+           CloseHandle(pi.hThread);
+       }
+   }
+
+   int main() {
+       parent_process();
+       return 0;
+   }
+   ```
+
+   ```c
+   // child.exe
+   #include <windows.h>
+   #include <stdio.h>
+
+   int main() {
+       printf("Child process running: %d\n", GetCurrentProcessId());
+       Sleep(5000);
+       return 0;
+   }
+   ```
+
+2. **Enable Child Process Debugging**
+   ```windbg
+   .childdbg 1  # Enable automatic child process debugging
+   sxe cpr      # Break on process creation
+   ```
+
+3. **Launch Parent Process**
+   ```windbg
+   .create parent.exe
+   g
+   # Will break on child process creation
+   ```
+
+4. **Switch Between Processes**
+   ```windbg
+   |  # List all processes
+   |0s  # Switch to process 0
+   |1s  # Switch to process 1
+   ~  # List threads in current process
+   ```
+
+5. **Analyze Process Relationships**
+   ```windbg
+   !peb  # Display Process Environment Block
+   !gle  # Get last error
+   dt _PEB @$peb  # Detailed PEB structure
+   ```
+
+6. **Debugging Process Communication**
+   ```windbg
+   # In parent process
+   bp kernel32!CreateProcessW
+   g
+   # Step through process creation
+
+   # In child process
+   bp child!main
+   g
+   ```
+
+#### Deliverables:
+- Process tree diagram
+- Communication analysis between processes
+- Debug session log showing process switches
+- Notes on debugging challenges with multiple processes
+
+### Exercise 7: WinDbg Scripting Introduction (Advanced)
+**Duration:** 60 minutes
+
+#### Objective:
+Learn to automate debugging tasks using WinDbg scripting capabilities.
+
+#### Steps:
+
+1. **Basic Command Scripting**
+   ```windbg
+   $$ This is a comment
+   .echo "Starting automated analysis"
+
+   $$ Loop through all modules
+   .foreach (mod {lm1m}) {
+       .echo ${mod}
+       !lmi ${mod}
+   }
+   ```
+
+2. **Create Script File** (`analyze.wdbg`)
+   ```windbg
+   $$
+   $$ Automated Analysis Script
+   $$
+
+   .echo "=== Process Analysis ==="
+   .echo "Process ID:"
+   !process
+
+   .echo "=== Module List ==="
+   lmv
+
+   .echo "=== Symbol Status ==="
+   .reload /f
+
+   .echo "=== Function List ==="
+   x /D sample!*
+
+   .echo "Analysis complete!"
+   ```
+
+3. **Run Script**
+   ```windbg
+   $$< analyze.wdbg  # Execute script from file
+   ```
+
+4. **Conditional Execution**
+   ```windbg
+   $$ Check if symbol loaded
+   .if ($spat("sample!main")) {
+       .echo "Symbols loaded successfully"
+       uf sample!main
+   } .else {
+       .echo "Symbols not loaded!"
+       .reload /f
+   }
+   ```
+
+5. **Pseudo-Registers for Scripting**
+   ```windbg
+   $$ Store values in pseudo-registers
+   r $t0 = poi(esp)
+   r $t1 = poi(esp+4)
+   .printf "ESP: %p, ESP+4: %p\n", @$t0, @$t1
+   ```
+
+6. **Automated Breakpoint Management**
+   ```windbg
+   $$ Set multiple breakpoints with logging
+   .foreach (func {x /n sample!*}) {
+       bp ${func} ".echo Entering: ${func}; g"
+   }
+   ```
+
+7. **Create Analysis Function**
+   ```windbg
+   $$ Save as function.txt
+   $$ Analyzes stack for current thread
+
+   .echo "=== Stack Analysis ==="
+   k 10
+
+   .echo "=== Stack Frame Details ==="
+   dv
+
+   .echo "=== Register State ==="
+   r
+   ```
+
+#### Challenge Tasks:
+- Create a script that automatically analyzes all loaded modules
+- Write a script to find and list all string references
+- Automate symbol verification for all loaded modules
+- Create debugging workflow automation
+
+#### Deliverables:
+- Collection of useful WinDbg scripts
+- Script documentation
+- Examples of automation in debugging workflow
+- Performance comparison: manual vs automated analysis
 
 ## Lab Deliverables
 

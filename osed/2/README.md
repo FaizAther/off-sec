@@ -48,7 +48,13 @@ By the end of this section, students will be able to:
 - Register Analysis
 - Address Calculations
 
-[📖 Theory Guide](./2.1/theory/lesson_plan.md) | [🔬 Lab Guide](./2.1/lab/lab_guide.md)
+**Lab Difficulty Levels:**
+- [🔬 Beginner Lab](./2.1/lab/lab_guide.md) - Basic x86 architecture concepts
+- [🔬 Intermediate Lab](./2.1/lab/intermediate/lab_guide.md) - Advanced analysis with multi-threading
+- [🔬 Advanced Lab](./2.1/lab/advanced/lab_guide.md) - Exploit development fundamentals
+- [🔬 Expert Lab](./2.1/lab/expert/lab_guide.md) - Real-world exploitation challenges
+
+[📖 Theory Guide](./2.1/theory/lesson_plan.md) | [📚 Detailed Theory](./2.1/theory/theory.md)
 
 ---
 
@@ -67,7 +73,7 @@ By the end of this section, students will be able to:
 - Symbol Management
 - Process Analysis
 
-[📖 Theory Guide](./2.2/theory/lesson_plan.md) | [🔬 Lab Guide](./2.2/lab/lab_guide.md)
+[📖 Theory Guide](./2.2/theory/lesson_plan.md) | [📚 Detailed Theory](./2.2/theory/theory.md) | [🔬 Lab Guide](./2.2/lab/lab_guide.md)
 
 ---
 
@@ -89,7 +95,7 @@ By the end of this section, students will be able to:
 - Memory Manipulation and Search
 - Register Manipulation
 
-[📖 Theory Guide](./2.3/theory/lesson_plan.md) | [🔬 Lab Guide](./2.3/lab/lab_guide.md)
+[📖 Theory Guide](./2.3/theory/lesson_plan.md) | [📚 Detailed Theory](./2.3/theory/theory.md) | [🔬 Lab Guide](./2.3/lab/lab_guide.md)
 
 ---
 
@@ -109,7 +115,7 @@ By the end of this section, students will be able to:
 - Hardware Breakpoints and Code Stepping
 - Execution Control
 
-[📖 Theory Guide](./2.4/theory/lesson_plan.md) | [🔬 Lab Guide](./2.4/lab/lab_guide.md)
+[📖 Theory Guide](./2.4/theory/lesson_plan.md) | [📚 Detailed Theory](./2.4/theory/theory.md) | [🔬 Lab Guide](./2.4/lab/lab_guide.md)
 
 ---
 
@@ -128,7 +134,7 @@ By the end of this section, students will be able to:
 - Calculator and Format Features
 - Advanced WinDbg Utilities
 
-[📖 Theory Guide](./2.5/theory/lesson_plan.md) | [🔬 Lab Guide](./2.5/lab/lab_guide.md)
+[📖 Theory Guide](./2.5/theory/lesson_plan.md) | [📚 Detailed Theory](./2.5/theory/theory.md) | [🔬 Lab Guide](./2.5/lab/lab_guide.md)
 
 ---
 
@@ -146,7 +152,7 @@ By the end of this section, students will be able to:
 - Skill Demonstration
 - Practical Application Assessment
 
-[📖 Theory Guide](./2.6/theory/lesson_plan.md) | [🔬 Lab Guide](./2.6/lab/lab_guide.md)
+[📖 Theory Guide](./2.6/theory/lesson_plan.md) | [📚 Detailed Theory](./2.6/theory/theory.md) | [🔬 Lab Guide](./2.6/lab/lab_guide.md)
 
 ---
 
