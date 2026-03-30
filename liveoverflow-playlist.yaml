@@ -1,0 +1,40 @@
+# LiveOverflow Binary Hacking playlist (incl. bin 0x00 + exploit.education style labs)
+# https://www.youtube.com/watch?v=iyAyN3GFM7A&list=PLhixgUqwRTjxglIswKp9mpkfPNfHkzyeN
+#
+# Main lab image is Ubuntu 14.04 Trusty to align with the videos (gcc/glibc/gdb era).
+# Pwntools is not baked in (Trusty + PyPI TLS is unreliable in 2026); add it on the host
+# or switch to a newer Ubuntu tag when you need modern pwntools. Apple Container has no
+# compose plugin — use the
+# `container build` / `container run`:
+#
+#   container build --platform linux/amd64 -m 4g -c 4 \
+#     -t liveoverflow-pwn:14.04 -f containers/liveoverflow-pwn/Dockerfile containers/liveoverflow-pwn
+#   container run -d --name liveoverflow-pwn --arch amd64 --rosetta --cpus 4 --memory 4g \
+#     -v "${PWD}/liveoverflow-labs:/home/pwner/labs" -w /home/pwner/labs \
+#     liveoverflow-pwn:14.04 sleep infinity
+
+services:
+  liveoverflow-pwn:
+    image: liveoverflow-pwn:14.04
+    container_name: liveoverflow-pwn
+    command: ["sleep", "infinity"]
+    working_dir: /home/pwner/labs
+    volumes:
+      - ./liveoverflow-labs:/home/pwner/labs
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 4G
+    tty: true
+    stdin_open: true
+
+  ubuntu-trusty-minimal:
+    image: docker.io/library/ubuntu:14.04
+    container_name: ubuntu-14-trusty-minimal
+    command: ["sleep", "infinity"]
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1G
