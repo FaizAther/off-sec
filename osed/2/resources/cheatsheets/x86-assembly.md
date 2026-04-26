@@ -4,6 +4,37 @@
 
 ---
 
+## 🎯 Registers (64-bit / amd64)
+
+### General Purpose Registers
+
+| 64-bit | 32-bit | 16-bit | 8-bit (low) | Notes |
+|--------|--------|--------|-------------|-------|
+| **RAX** | EAX | AX | AL | Return value, arithmetic, syscall number |
+| **RBX** | EBX | BX | BL | Callee-saved (SysV/Win64) |
+| **RCX** | ECX | CX | CL | Arg reg (Win64 arg1), shifts |
+| **RDX** | EDX | DX | DL | Arg reg |
+| **RSI** | ESI | SI | SIL | Arg reg (SysV arg2) |
+| **RDI** | EDI | DI | DIL | Arg reg (SysV arg1) |
+| **RBP** | EBP | BP | BPL | Frame pointer (optional) |
+| **RSP** | ESP | SP | SPL | Stack pointer |
+| **R8**  | R8D | R8W | R8B | Arg reg |
+| **R9**  | R9D | R9W | R9B | Arg reg |
+| **R10** | R10D | R10W | R10B | Syscall arg reg (Linux) |
+| **R11** | R11D | R11W | R11B | Clobbered by `syscall` |
+| **R12–R15** | R12D–R15D | ... | ... | Callee-saved (SysV/Win64) |
+| **RIP** | EIP | — | — | Instruction pointer |
+
+### RFLAGS
+- Same ideas as EFLAGS (CF/ZF/SF/OF/DF/etc.), but the 64-bit register is **RFLAGS**.
+
+### Segment registers (why they matter in exploitation)
+- **FS/GS** are commonly used for thread-local storage.
+  - Linux x86_64: **FS** often points to TLS (canaries often live at `fs:0x28`).
+  - Windows: **FS** (x86) / **GS** (x64) often point to thread structures (TEB).
+
+---
+
 ## 🎯 Registers (32-bit)
 
 ### General Purpose Registers
@@ -245,6 +276,29 @@ popfd               ; Pop EFLAGS
 
 ---
 
+## 🧾 64-bit calling conventions (high-signal)
+
+### System V AMD64 ABI (Linux)
+- **Integer/pointer args**: `RDI, RSI, RDX, RCX, R8, R9`
+- **Return value**: `RAX`
+- **Callee-saved**: `RBX, RBP, R12–R15`
+- **Stack alignment**: before `call`, stack is 16-byte aligned; at function entry `RSP % 16 == 8` because the return address was pushed
+
+Example: calling `puts(char *s)` (conceptual)
+```asm
+lea rdi, [rip+msg]
+call puts
+msg: db "hi", 0
+```
+
+### Microsoft x64 (Windows)
+- **Integer/pointer args**: `RCX, RDX, R8, R9`
+- **Return value**: `RAX`
+- **Callee-saved**: `RBX, RBP, RDI, RSI, R12–R15`
+- **Shadow space**: caller reserves 32 bytes on the stack before the call
+
+---
+
 ## 📝 String Instructions
 
 All string instructions use ESI (source) and EDI (destination). Direction controlled by DF flag (CLD = forward, STD = backward).
@@ -352,6 +406,34 @@ ret
 
 ---
 
+## 🧷 Stack canaries (what you’ll see in disassembly)
+
+Canary patterns differ by compiler/OS, but the idea is:
+- load a canary from TLS (often via FS/GS segment)
+- save it in the stack frame
+- verify it before returning, call `__stack_chk_fail` on mismatch
+
+Typical gcc-ish x86_64 shape (conceptual):
+```asm
+push rbp
+mov  rbp, rsp
+sub  rsp, 0x40
+mov  rax, qword ptr fs:0x28
+mov  qword ptr [rbp-0x8], rax
+
+; ... body ...
+
+mov  rdx, qword ptr [rbp-0x8]
+xor  rdx, qword ptr fs:0x28
+jne  __stack_chk_fail
+leave
+ret
+```
+
+Exploit implication: if canaries are enabled, you typically need an info leak (or avoid smashing past the canary).
+
+---
+
 ## 📋 Calling Conventions
 
 ### __cdecl (C Declaration)
@@ -452,6 +534,13 @@ mov eax, [ebx+ecx*4] ; Base + (Index * Scale)
 mov eax, [ebx+ecx*4+8] ; Base + (Index * Scale) + Displacement
 ```
 
+### RIP-relative (x86_64 position-independent code)
+On x86_64, compilers heavily use RIP-relative addressing for PIE/shared libs:
+```asm
+lea rax, [rip+0x2f13]          ; compute an address without absolute pointers
+mov rdi, qword ptr [rip+sym]   ; load a pointer/value relative to RIP
+```
+
 ---
 
 ## 💾 Common Instruction Encodings
@@ -507,6 +596,13 @@ pop eax; ret        ; Load value into EAX
 pop ebx; pop ecx; ret ; Load multiple registers
 mov eax, [ebx]; ret ; Dereference pointer
 add esp, 0x10; ret  ; Stack pivot
+```
+
+### Common stack pivots (conceptual)
+```asm
+xchg eax, esp; ret  ; pivot stack to controlled buffer (x86)
+mov  esp, eax; ret
+leave; ret          ; pivot to [ebp] chain if you control EBP
 ```
 
 ---
@@ -615,6 +711,40 @@ pop ebx             ; EBX = current EIP
 
 ---
 
+## 🧨 Syscalls (Linux quick reference)
+
+### x86 (32-bit): `int 0x80`
+- **Syscall number**: `EAX`
+- **Args**: `EBX, ECX, EDX, ESI, EDI, EBP`
+- **Return**: `EAX`
+
+Example: `exit(0)`
+```asm
+xor eax, eax
+mov al, 1           ; __NR_exit
+xor ebx, ebx        ; status = 0
+int 0x80
+```
+
+### x86_64: `syscall`
+- **Syscall number**: `RAX`
+- **Args**: `RDI, RSI, RDX, R10, R8, R9`
+- **Return**: `RAX`
+- Clobbers: `RCX, R11` (and flags)
+
+Example: `write(1, msg, 3)`
+```asm
+mov eax, 1          ; __NR_write
+mov edi, 1          ; fd = 1 (stdout)
+lea rsi, [rip+msg]  ; buf
+mov edx, 3          ; count
+syscall
+
+msg: db "hi\n"
+```
+
+---
+
 ## 📚 Quick Reference Tables
 
 ### Register Preservation (Calling Conventions)
@@ -656,7 +786,7 @@ pop ebx             ; EBX = current EIP
 
 ---
 
-**Version**: 1.0 | **Last Updated**: December 2024
-**For**: OSED Section 2 - WinDbg and x86 Architecture
+**Version**: 1.1 | **Last Updated**: April 2026
+**For**: OSED Section 2 - x86/x86_64 Architecture (exploit-dev focused)
 
 *Keep this reference handy when analyzing assembly code!*
